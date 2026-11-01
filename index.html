@@ -172,12 +172,74 @@ function ore(x,z){let g=group(x,z);let a=mesh(new T.DodecahedronGeometry(.9,0),m
 for(let i=0;i<140;i++){let x=(Math.random()-.5)*48,z=(Math.random()-.5)*48;if(Math.hypot(x,z)<6)continue;i%4?tree(x,z):ore(x,z)}
 let weaponLevel=0,upgradeCooldown=0;const upgradeCosts=[0,12,35,75];const upgrade=group(-2.3,3.1);cube(upgrade,0,.1,0,1.8,.2,1.7,gold);let upgradeRing=mesh(new T.TorusGeometry(.85,.07,6,32),cyan,upgrade);upgradeRing.rotation.x=Math.PI/2;upgradeRing.position.y=.23;const upgradeSign=labelUpgrade();upgradeSign.position.y=1.7;upgrade.add(upgradeSign);function labelUpgrade(){let c=document.createElement('canvas');c.width=256;c.height=80;let x=c.getContext('2d');x.fillStyle='#172d2a';x.fillRect(0,0,256,80);x.fillStyle='#ffe6a0';x.font='bold 25px system-ui';x.textAlign='center';x.fillText('УЛУЧШИТЬ',128,48);let t=new T.CanvasTexture(c);let sp=new T.Sprite(new T.SpriteMaterial({map:t,transparent:true}));sp.scale.set(2.1,.65,1);return sp}
 function upgradeWeapon(){if(weaponLevel>=3)return;const cost=upgradeCosts[weaponLevel+1];if(coins>=cost){coins-=cost;weaponLevel++;axe.material=weaponLevel===1?metalMat:weaponLevel===2?cyan:gold;axe.scale.setScalar(1+weaponLevel*.3);upgradeSign.scale.set(2.1,.65,1);if(weaponLevel===3)upgradeSign.visible=false;toast('ОРУЖИЕ УР. '+(weaponLevel+1));slashMat.color.setHex(weaponLevel===3?0xffcc55:0x65f3f6);hud()}}
-const types=[['turret',-5,5,8,3],['fence',5,0,14,5],['house',-6,-3,12,4],['turret',5,5,8,3],['house',0,-6,12,4],['turret',-5,-5,8,3]];
+const types=[['sawmill',-8,2,5,0],['mine',8,2,3,3],['turret',-5,5,8,3],['fence',5,0,14,5],['house',-6,-3,12,4],['turret',5,5,8,3],['house',0,-6,12,4],['turret',-5,-5,8,3]];
 function label(text){let c=document.createElement('canvas');c.width=256;c.height=100;let x=c.getContext('2d');x.fillStyle='#143d35';x.fillRect(0,0,256,100);x.font='bold 28px system-ui';x.fillStyle='white';x.textAlign='center';x.fillText(text,128,43);let tx=new T.CanvasTexture(c),sp=new T.Sprite(new T.SpriteMaterial({map:tx,transparent:true,depthTest:false}));sp.scale.set(2.5,.98,1);return sp}
-for(const [type,x,z,cw,cm] of types){let g=group(x,z);let platform=mesh(new T.CylinderGeometry(1.18,1.18,.12,6),cyan,g);platform.position.y=.08;let ring=mesh(new T.TorusGeometry(1.08,.08,5,24),gold,g);ring.rotation.x=Math.PI/2;ring.position.y=.17;let l=label(type==='turret'?'ТУРЕЛЬ':type==='house'?'ДОМ':'ЗАБОР');l.position.y=2.15;g.add(l);pads.push({type,x,z,cw,cm,g,ring,platform,label:l,built:false,building:false,progress:0})}
+for(const [type,x,z,cw,cm] of types){let g=group(x,z);let platform=mesh(new T.CylinderGeometry(1.18,1.18,.12,6),cyan,g);platform.position.y=.08;let ring=mesh(new T.TorusGeometry(1.08,.08,5,24),gold,g);ring.rotation.x=Math.PI/2;ring.position.y=.17;let l=label(type==='turret'?'ТУРЕЛЬ':type==='house'?'ДОМ':type==='sawmill'?'ЛЕСОПИЛКА':type==='mine'?'ШАХТА':'ЗАБОР');l.position.y=2.15;g.add(l);pads.push({type,x,z,cw,cm,g,ring,platform,label:l,built:false,building:false,progress:0})}
 function turret(x,z){let g=group(x,z);cube(g,0,.5,0,1.4,1,.95,metalMat);cube(g,0,1.2,0,1.7,.35,1.3,dark);let gun=cube(g,0,1.42,.7,.34,.3,1.55,metalMat);turrets.push({x,z,g,gun,cd:0})}
 function house(x,z){let g=group(x,z);cube(g,0,.75,0,2,1.5,1.8,woodMat);let r=mesh(new T.ConeGeometry(1.65,1.25,4),roof,g);r.rotation.y=Math.PI/4;r.position.y=2.05;cube(g,0,.58,.94,.58,1.1,.08,dark);cube(g,.62,1.16,.94,.34,.38,.08,gold);houses.push({x,z,g})}
 function fence(){wall=group(0,0);for(let x=-3.8;x<=3.8;x+=.85){for(let z of [-3.8,3.8]){if(z>0&&Math.abs(x)<1.1)continue;cube(wall,x,.73,z,.23,1.45,.23,woodMat)}}for(let z=-3.8;z<=3.8;z+=.85)for(let x of [-3.8,3.8])cube(wall,x,.73,z,.23,1.45,.23,woodMat)}
+const workers=[],workshops=[];
+function createWorkshop(type,x,z){
+ const g=group(x,z),isWood=type==='sawmill';
+ cube(g,0,.72,0,2.3,1.44,1.9,isWood?woodMat:metalMat);
+ const roofMesh=mesh(new T.ConeGeometry(1.75,1.0,4),roof,g);roofMesh.rotation.y=Math.PI/4;roofMesh.position.y=1.85;
+ cube(g,0,.65,1,.7,1.1,.12,dark);
+ for(let i=0;i<3;i++)cube(g,-.8+i*.8,.25,-1.3,.6,.45,.55,isWood?woodMat:metalMat);
+ workshops.push({type,x,z,g});
+ for(let i=0;i<2;i++)spawnWorker(type,x+(i?1:-1),z+1.5,x,z);
+ toast(isWood?'ЛЕСОПИЛКА ПОСТРОЕНА':'ШАХТА ПОСТРОЕНА');
+}
+function spawnWorker(type,x,z,homeX,homeZ){
+ const g=group(x,z),lumber=type==='sawmill',shirt=mat(lumber?0xb56c38:0x497d98),pants=mat(0x384d4b),beard=mat(0x593927),skinTone=mat(0xe5ac7e);
+ const body=mesh(new T.CapsuleGeometry(.25,.5,5,8),shirt,g);body.position.y=1.05;
+ const head=ball(g,0,1.73,.04,.29,skinTone,1);
+ if(lumber){const b=mesh(new T.SphereGeometry(.23,10,8),beard,g);b.position.set(0,1.57,.18);b.scale.set(1,.7,.7)}
+ const cap=mesh(new T.CylinderGeometry(.26,.28,.14,9),lumber?beard:pants,g);cap.position.y=1.98;
+ const legs=[],arms=[];
+ for(const side of [-1,1]){
+  const leg=new T.Group();leg.position.set(side*.15,.73,0);g.add(leg);cube(leg,0,-.28,0,.2,.55,.23,pants);legs.push(leg);
+  const arm=new T.Group();arm.position.set(side*.32,1.35,0);g.add(arm);cube(arm,0,-.22,0,.2,.47,.22,shirt);arms.push(arm);
+ }
+ const tool=new T.Group();arms[1].add(tool);tool.position.set(0,-.48,.17);
+ const shaft=mesh(new T.CylinderGeometry(.035,.035,.8,7),woodMat,tool);shaft.rotation.x=Math.PI/2;shaft.position.z=.36;
+ if(lumber){const blade=cube(tool,0,0,.72,.3,.32,.1,metalMat)}
+ else{const pick=mesh(new T.ConeGeometry(.22,.5,5),metalMat,tool);pick.rotation.z=Math.PI/2;pick.position.z=.74}
+ workers.push({g,type,homeX,homeZ,legs,arms,phase:'seek',target:null,timer:0,load:0,speed:2.1+Math.random()*.3});
+}
+function updateWorkers(dt){
+ for(const w of workers){
+  const resources=w.type==='sawmill'?trees:ores;
+  if(w.phase==='seek'){
+   w.target=resources.filter(r=>r.hp>0&&Math.hypot(r.x-w.homeX,r.z-w.homeZ)<24).sort((a,b)=>Math.hypot(a.x-w.g.position.x,a.z-w.g.position.z)-Math.hypot(b.x-w.g.position.x,b.z-w.g.position.z))[0]||null;
+   if(w.target)w.phase='travel';
+  }
+  let tx=w.homeX,tz=w.homeZ;
+  if(w.phase==='travel'&&w.target){tx=w.target.x;tz=w.target.z}
+  if(w.phase==='travel'||w.phase==='return'){
+   const dx=tx-w.g.position.x,dz=tz-w.g.position.z,d=Math.hypot(dx,dz);
+   if(d>.95){
+    const step=Math.min(d-.85,w.speed*dt);w.g.position.x+=dx/d*step;w.g.position.z+=dz/d*step;
+    w.g.rotation.y=Math.atan2(dx,dz);
+    w.legs[0].rotation.x=Math.sin(clock*11)*.5;w.legs[1].rotation.x=-w.legs[0].rotation.x;
+    w.arms[0].rotation.x=-w.legs[0].rotation.x*.5;w.arms[1].rotation.x=w.legs[0].rotation.x*.5;
+   }else{
+    w.legs.forEach(a=>a.rotation.x=0);
+    if(w.phase==='travel'){w.phase='chop';w.timer=0}
+    else{if(w.type==='sawmill')wood+=w.load;else metal+=w.load;w.load=0;w.phase='seek';hud()}
+   }
+  }else if(w.phase==='chop'){
+   if(!w.target||w.target.hp<=0){w.phase='seek';continue}
+   w.timer+=dt;w.arms[1].rotation.x=-.9+Math.sin(clock*12)*.8;
+   w.arms[0].rotation.x=-.2;
+   if(w.timer>=1.1){
+    w.timer=0;w.target.hp=Math.max(0,w.target.hp-1);w.load++;
+    w.target.g.scale.y=Math.max(.35,w.target.hp/w.target.maxHp);
+    if(w.target.hp<=0)scene.remove(w.target.g);
+    if(w.load>=3||w.target.hp<=0){w.phase='return';w.arms[1].rotation.x=0}
+   }
+  }
+ }
+}
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z),rand=(a,b)=>a+Math.random()*(b-a);
 let stick={x:0,y:0},joy=document.getElementById('joy'),nub=document.getElementById('nub'),pid=null;
 function joyMove(e){let r=joy.getBoundingClientRect(),x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2,m=Math.max(1,Math.hypot(x,y)),a=Math.min(m,44);stick.x=x/m*a/44;stick.y=y/m*a/44;nub.style.transform='translate('+stick.x*42+'px,'+stick.y*42+'px)'}
@@ -214,6 +276,7 @@ for(const x of [-.85,.85])for(const z of [-.85,.85])cube(frame,x,.9,z,.15,1.8,.1
 frame.scale.y=.001;
 const walls=new T.Group();p.site.add(walls);
 if(p.type==='house'){cube(walls,0,.85,0,1.8,1.7,1.7,woodMat);cube(walls,0,1.85,0,2.1,.25,2.1,roof)}
+else if(p.type==='sawmill'||p.type==='mine'){cube(walls,0,.7,0,1.9,1.4,1.7,p.type==='mine'?metalMat:woodMat);cube(walls,0,1.55,0,2.1,.25,1.9,roof)}
 else if(p.type==='turret'){cube(walls,0,.75,0,1.3,1.5,1.2,metalMat);cube(walls,0,1.65,0,1.7,.3,1.5,dark)}
 else{for(let i=-3;i<=3;i++)cube(walls,i*.3,.75,0,.2,1.5,.2,woodMat)}
 walls.scale.y=.001;p.stages=[foundation,frame,walls];hud();
@@ -224,7 +287,7 @@ p.stages[0].scale.setScalar(Math.min(1,q*4));
 p.stages[1].scale.y=Math.max(.001,Math.min(1,(q-.25)*3));
 p.stages[2].scale.y=Math.max(.001,Math.min(1,(q-.6)*2.5));
 if(Math.random()<dt*8){const sx=p.x+rand(-.8,.8),sz=p.z+rand(-.8,.8),spark=group(sx,sz);ball(spark,0,rand(.5,1.8),0,.07,gold);particles.push({g:spark,from:{x:sx,z:sz},to:{x:sx+rand(-.4,.4),z:sz+rand(-.4,.4)},t:0,duration:.4})}
-if(q>=1){p.built=true;p.building=false;scene.remove(p.site);scene.remove(p.g);if(p.type==='turret')turret(p.x,p.z);else if(p.type==='house')house(p.x,p.z);else fence()}
+if(q>=1){p.built=true;p.building=false;scene.remove(p.site);scene.remove(p.g);if(p.type==='turret')turret(p.x,p.z);else if(p.type==='house')house(p.x,p.z);else if(p.type==='sawmill'||p.type==='mine')createWorkshop(p.type,p.x,p.z);else fence()}
 }
 }
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.t+=dt;let k=Math.min(1,p.t/p.duration);p.g.position.x=p.from.x+(p.to.x-p.from.x)*k;p.g.position.z=p.from.z+(p.to.z-p.from.z)*k;p.g.position.y=Math.sin(k*Math.PI)*2;if(k>=1){scene.remove(p.g);particles.splice(i,1)}}
@@ -234,6 +297,7 @@ shot-=dt;if(shot<=0){let h={x:hero.position.x,z:hero.position.z},target=enemies.
 for(const t of turrets){t.cd-=dt;if(t.cd>0)continue;let target=enemies.filter(e=>dist(e,t)<9).sort((a,b)=>dist(a,t)-dist(b,t))[0];if(target){shootAt(t,target);t.cd=.4}}
 for(let i=bullets.length-1;i>=0;i--){let b=bullets[i],e=b.target;if(e.hp<=0){scene.remove(b.g);bullets.splice(i,1);continue}let dx=e.x-b.g.position.x,dz=e.z-b.g.position.z,ll=Math.hypot(dx,dz)||1;if(ll<.45){e.hp--;scene.remove(b.g);bullets.splice(i,1)}else{b.g.position.x+=dx/ll*b.speed*dt;b.g.position.z+=dz/ll*b.speed*dt}}
 for(let i=enemies.length-1;i>=0;i--)if(enemies[i].hp<=0){scene.remove(enemies[i].g);enemies.splice(i,1);kills++;if(Math.random()<.3)metal++;hud()}
+updateWorkers(dt);
 houseTick+=dt;if(houseTick>10&&houses.length){houseTick=0;wood+=houses.length*2;toast('ДОМА ПРИНЕСЛИ ДЕРЕВО');hud()}
 if(baseHp<=0){dead=true;document.getElementById('reset').style.display='grid'}}
 let last=performance.now();function frame(now){let dt=Math.min(.045,(now-last)/1000);last=now;step(dt);let target=new T.Vector3(hero.position.x,0,hero.position.z);camera.position.lerp(new T.Vector3(target.x+7.3,14,target.z+10),.085);camera.lookAt(target.x,1,target.z);renderer.render(scene,camera);requestAnimationFrame(frame)}addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});hud();loading.remove();requestAnimationFrame(frame);
