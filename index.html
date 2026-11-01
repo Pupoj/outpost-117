@@ -113,7 +113,7 @@ async function loadRealSoldier(){
   model.updateMatrixWorld(true);
   const scaledBounds=new T.Box3().setFromObject(model);
   model.position.y=-scaledBounds.min.y;
-  model.rotation.y=Math.PI;
+  model.rotation.y=0; // GLB faces backward relative to previous soldier asset
   // Cartoon art direction: bold colors, simplified light bands and slightly heroic proportions.
   const toonSteps=new Uint8Array([58,58,58,255,115,115,115,255,185,185,185,255,255,255,255,255]);
   const toonRamp=new T.DataTexture(toonSteps,4,1,T.RGBAFormat);
@@ -135,9 +135,15 @@ async function loadRealSoldier(){
     m.needsUpdate=true;
    }
   });
+  const fill=new T.PointLight(0xfff1d5,1.35,9,2);fill.position.set(2,4,4);hero.add(fill);
   hero.add(model);soldierModel=model;
   soldierMixer=new T.AnimationMixer(model);
-  for(const clip of gltf.animations)soldierActions[clip.name.toLowerCase()]=soldierMixer.clipAction(clip);
+  for(const clip of gltf.animations){
+   // Root motion must not move the model away from its joystick-controlled parent.
+   const safe=clip.clone();safe.tracks=safe.tracks.filter(t=>!(/(^|[.\/])(root|armature|scene)([.\/]|$)/i.test(t.name)&&/\.position$/.test(t.name)));
+   soldierActions[clip.name.toLowerCase()]=soldierMixer.clipAction(safe);
+  }
+  console.info('Master Chief animations:',Object.keys(soldierActions));
   ranger.visible=false;
   for(const o of hero.children){if(o!==model&&o!==heroRing&&o!==cargo&&o!==slash)o.visible=false}
   setSoldierAnimation('idle');
@@ -146,10 +152,15 @@ async function loadRealSoldier(){
 }
 function setSoldierAnimation(state){
  if(!soldierMixer||state===soldierState)return;
- const action=soldierActions[state]||soldierActions.idle||Object.values(soldierActions)[0];
- if(!action)return;
  const previous=soldierActions[soldierState];
- action.reset().play();if(previous&&previous!==action)action.crossFadeFrom(previous,.2,false);
+ const action=soldierActions[state]|| (state==='walk'?soldierActions.run:null);
+ if(!action){
+  if(previous)previous.fadeOut(.16);
+  soldierState=state;
+  return;
+ }
+ if(previous&&previous!==action){action.reset().play();action.crossFadeFrom(previous,.18,false)}
+ else if(!action.isRunning())action.reset().fadeIn(.18).play();
  soldierState=state;
 }
 loadRealSoldier();
@@ -180,9 +191,9 @@ function shootAt(from,target){let g=group(from.x,from.z);ball(g,0,1.1,0,.18,gold
 function step(dt){if(dead)return;clock+=dt;wave=1+Math.floor(clock/30);if(clock>toastUntil)document.getElementById('toast').style.opacity=0;
 let vx=stick.x+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),vz=stick.y+(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0),l=Math.hypot(vx,vz);if(l>1){vx/=l;vz/=l}hero.position.x=Math.max(-26,Math.min(26,hero.position.x+vx*6.2*dt));hero.position.z=Math.max(-26,Math.min(26,hero.position.z+vz*6.2*dt));if(l>.05){hero.rotation.y=Math.atan2(vx,vz);legL.rotation.x=Math.sin(clock*13)*.52;legR.rotation.x=-legL.rotation.x;leftArm.rotation.x=-legL.rotation.x*.7;rightArm.rotation.x=-legR.rotation.x*.45}else{legL.rotation.x=legR.rotation.x=0;leftArm.rotation.x=rightArm.rotation.x=0}
 const miningTarget=[...trees,...ores].find(o=>o.hp>0&&dist({x:hero.position.x,z:hero.position.z},o)<1.8);
-if(miningTarget&&l<.18){const dx=miningTarget.x-hero.position.x,dz=miningTarget.z-hero.position.z;hero.rotation.y=Math.atan2(dx,dz);const swing=Math.sin(clock*19);rightArm.rotation.x=-1.2-swing*.8;leftArm.rotation.x=-.45+swing*.22;hero.rotation.z=Math.sin(clock*19)*.075;hero.position.y=Math.max(0,Math.sin(clock*19)*.035);rifle.visible=false;}else{hero.rotation.z=0;hero.position.y=0;rifle.visible=true;}
+if(miningTarget&&l<.18){const dx=miningTarget.x-hero.position.x,dz=miningTarget.z-hero.position.z;hero.rotation.y=Math.atan2(dx,dz);const swing=Math.sin(clock*19);rightArm.rotation.x=-1.2-swing*.8;leftArm.rotation.x=-.45+swing*.22;hero.rotation.z=soldierMixer?0:Math.sin(clock*19)*.075;hero.position.y=soldierMixer?0:Math.max(0,Math.sin(clock*19)*.035);rifle.visible=false;}else{hero.rotation.z=0;hero.position.y=0;rifle.visible=true;}
 let mining=!!miningTarget&&l<.18;
-if(soldierMixer){soldierMixer.update(dt);setSoldierAnimation(l>.1?'walk':mining?'run':'idle');}
+if(soldierMixer){soldierMixer.update(dt);setSoldierAnimation(l>.1?'walk':'idle');}
 ll.rotation.x=l>.05?Math.sin(clock*12)*.55:0;rl.rotation.x=-ll.rotation.x;
 la.rotation.x=l>.05?-ll.rotation.x*.5:0;ra.rotation.x=mining?-1.2+Math.sin(clock*19)*.7:(l>.05?ll.rotation.x*.5:-.3);
 torso.rotation.z=mining?Math.sin(clock*19)*.08:0;
