@@ -102,7 +102,7 @@ async function loadRealSoldier(){
  try{
   const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/loaders/GLTFLoader.js');
   const loader=new GLTFLoader();
-  const gltf=await loader.loadAsync('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r149/examples/models/gltf/Soldier.glb');
+  const gltf=await loader.loadAsync('./halo-infinite-master-chief-rigged-walk.%202.glb');
   if(dead)return;
   const model=gltf.scene;
   model.updateMatrixWorld(true);
@@ -143,7 +143,7 @@ async function loadRealSoldier(){
   ranger.visible=false;
   for(const o of hero.children){if(o!==model&&o!==heroRing&&o!==cargo&&o!==slash)o.visible=false}
   setSoldierAnimation('idle');
-  toast('3D-ПЕХОТИНЕЦ ЗАГРУЖЕН');
+  toast('MASTER CHIEF ЗАГРУЖЕН');
  }catch(error){console.warn('3D soldier fallback:',error);ranger.visible=true}
 }
 function setSoldierAnimation(state){
