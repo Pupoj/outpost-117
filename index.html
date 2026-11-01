@@ -73,19 +73,19 @@ grass.map=groundTex;grass.color.setHex(0xffffff);grass.needsUpdate=true;
 
 for(const o of hero.children.slice()){if(o!==ranger&&o!==heroRing)o.visible=false}
 let torso=mesh(new T.CapsuleGeometry(.36,.72,6,12),uniform,ranger);torso.position.y=1.37;
-const plate=mat(0x536e43),plateLight=mat(0x81946c),plateDark=mat(0x263a32),visorGold=new T.MeshStandardMaterial({color:0xf2ad38,metalness:.65,roughness:.22,emissive:0x493009,emissiveIntensity:.25});
+const plate=mat(0x337b8c),plateLight=mat(0x63b2ad),plateDark=mat(0x263a32),visorGold=new T.MeshStandardMaterial({color:0xf2ad38,metalness:.65,roughness:.22,emissive:0x493009,emissiveIntensity:.25});
 cube(ranger,0,1.44,.33,.72,.65,.19,plate);cube(ranger,0,1.77,.17,.75,.17,.47,plateLight);
 cube(ranger,0,1.07,.22,.72,.25,.43,plateDark);
 cube(ranger,0,1.45,-.37,.65,.6,.17,plateDark);
 for(const side of [-1,1]){cube(ranger,side*.48,1.7,.02,.36,.3,.43,plate);cube(ranger,side*.2,.76,.21,.3,.29,.36,plate)}
 
-let head=mesh(new T.SphereGeometry(.33,16,12),plate,ranger);head.position.y=2.14;
-cube(ranger,0,2.13,.3,.53,.21,.14,visorGold);
+let head=mesh(new T.SphereGeometry(.37,16,12),skin,ranger);head.position.y=2.14;
+
 cube(ranger,0,1.96,.29,.44,.17,.23,plateDark);
 for(const side of [-1,1])cube(ranger,side*.34,2.12,.03,.12,.32,.36,plateDark);
 
-let hat=mesh(new T.SphereGeometry(.31,14,10),plateLight,ranger);hat.scale.y=.45;hat.position.y=2.4;
-let brim=mesh(new T.BoxGeometry(.42,.08,.23),plate,ranger);brim.position.set(0,2.31,.23);
+let hat=mesh(new T.SphereGeometry(.34,14,10),bootmat,ranger);hat.scale.y=.45;hat.position.y=2.4;
+let brim=mesh(new T.BoxGeometry(.52,.07,.3),bootmat,ranger);brim.position.set(0,2.31,.23);
 const ra=new T.Group(),la=new T.Group(),rl=new T.Group(),ll=new T.Group();
 ra.position.set(.45,1.76,0);la.position.set(-.45,1.76,0);rl.position.set(.19,.96,0);ll.position.set(-.19,.96,0);ranger.add(ra,la,rl,ll);
 for(const arm of [ra,la]){let m=mesh(new T.CapsuleGeometry(.15,.49,5,10),uniform,arm);m.position.y=-.35;cube(arm,0,-.25,.08,.35,.32,.36,plate);let hand=mesh(new T.SphereGeometry(.14,9,7),plateDark,arm);hand.position.y=-.7}
@@ -163,7 +163,7 @@ function setSoldierAnimation(state){
  else if(!action.isRunning())action.reset().fadeIn(.18).play();
  soldierState=state;
 }
-loadRealSoldier();
+// Realistic soldier disabled; use stylized ranger instead.
 let carryWood=0,carryMetal=0,coins=0;
 const sell=group(1.7,3.1);cube(sell,0,.09,0,2.4,.18,1.5,mat(0x353b3b));let sellRing=mesh(new T.TorusGeometry(1,.065,6,32),cyan,sell);sellRing.rotation.x=Math.PI/2;sellRing.position.y=.22;
 let trees=[],ores=[],turrets=[],houses=[],enemies=[],bullets=[],particles=[],pads=[],wood=0,metal=0,hp=100,baseHp=300,wave=1,clock=0,spawn=0,harvest=0,shot=0,houseTick=0,kills=0,dead=false,wall=null;
