@@ -114,7 +114,29 @@ async function loadRealSoldier(){
   const scaledBounds=new T.Box3().setFromObject(model);
   model.position.y=-scaledBounds.min.y;
   model.rotation.y=Math.PI;
-  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
+  // Cartoon art direction: bold colors, simplified light bands and slightly heroic proportions.
+  const toonSteps=new Uint8Array([58,58,58,255,115,115,115,255,185,185,185,255,255,255,255,255]);
+  const toonRamp=new T.DataTexture(toonSteps,4,1,T.RGBAFormat);
+  toonRamp.magFilter=T.NearestFilter;toonRamp.minFilter=T.NearestFilter;toonRamp.needsUpdate=true;
+  model.scale.x*=1.13;model.scale.z*=1.13;
+  model.traverse(o=>{
+   if(o.isBone&&/head/i.test(o.name))o.scale.multiplyScalar(1.13);
+   if(!o.isMesh)return;
+   o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;
+   const source=Array.isArray(o.material)?o.material:[o.material];
+   const converted=source.map(m=>{
+    const name=(o.name+' '+(m?.name||'')).toLowerCase();
+    let tint=0x688e61;
+    if(/skin|face|head|hand/.test(name))tint=0xe9b78b;
+    else if(/boot|shoe|belt|glove/.test(name))tint=0x394b49;
+    else if(/pant|trouser|leg/.test(name))tint=0x526b58;
+    else if(/gun|weapon|rifle/.test(name))tint=0x4c5960;
+    const color=new T.Color(tint);
+    if(m?.color)color.lerp(m.color,.25);
+    return new T.MeshToonMaterial({color,gradientMap:toonRamp,side:m?.side??T.FrontSide,transparent:!!m?.transparent,opacity:m?.opacity??1,skinning:!!o.isSkinnedMesh});
+   });
+   o.material=Array.isArray(o.material)?converted:converted[0];
+  });
   hero.add(model);soldierModel=model;
   soldierMixer=new T.AnimationMixer(model);
   for(const clip of gltf.animations)soldierActions[clip.name.toLowerCase()]=soldierMixer.clipAction(clip);
