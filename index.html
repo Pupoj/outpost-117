@@ -96,6 +96,43 @@ let slashMat=new T.MeshBasicMaterial({color:0x65f3f6,transparent:true,opacity:0,
 let slash=mesh(new T.TorusGeometry(1.05,.06,5,28,Math.PI*1.25),slashMat,hero);slash.rotation.x=Math.PI/2;slash.position.y=1.1;
 const cargo=new T.Group();cargo.position.set(0,0,-.52);hero.add(cargo);
 const cargoWood=[],cargoMetal=[];for(let i=0;i<20;i++){let w=mesh(new T.CylinderGeometry(.18,.18,.24,8),woodMat,cargo);w.rotation.z=Math.PI/2;w.position.set(-.22,.5+i*.22,0);w.visible=false;cargoWood.push(w);let m=cube(cargo,.22,.5+i*.22,0,.35,.2,.35,metalMat);m.visible=false;cargoMetal.push(m)}
+// Real skinned GLB soldier, with procedural character as offline fallback.
+let soldierMixer=null,soldierActions={},soldierState='',soldierModel=null;
+async function loadRealSoldier(){
+ try{
+  const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/loaders/GLTFLoader.js');
+  const loader=new GLTFLoader();
+  const gltf=await loader.loadAsync('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r149/examples/models/gltf/Soldier.glb');
+  if(dead)return;
+  const model=gltf.scene;
+  model.updateMatrixWorld(true);
+  const bounds=new T.Box3().setFromObject(model);
+  const size=new T.Vector3();bounds.getSize(size);
+  if(!size.y||!isFinite(size.y))throw Error('Invalid soldier dimensions');
+  model.scale.setScalar(2.35/size.y);
+  model.updateMatrixWorld(true);
+  const scaledBounds=new T.Box3().setFromObject(model);
+  model.position.y=-scaledBounds.min.y;
+  model.rotation.y=Math.PI;
+  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
+  hero.add(model);soldierModel=model;
+  soldierMixer=new T.AnimationMixer(model);
+  for(const clip of gltf.animations)soldierActions[clip.name.toLowerCase()]=soldierMixer.clipAction(clip);
+  ranger.visible=false;
+  for(const o of hero.children){if(o!==model&&o!==heroRing&&o!==cargo&&o!==slash)o.visible=false}
+  setSoldierAnimation('idle');
+  toast('3D-ПЕХОТИНЕЦ ЗАГРУЖЕН');
+ }catch(error){console.warn('3D soldier fallback:',error);ranger.visible=true}
+}
+function setSoldierAnimation(state){
+ if(!soldierMixer||state===soldierState)return;
+ const action=soldierActions[state]||soldierActions.idle||Object.values(soldierActions)[0];
+ if(!action)return;
+ const previous=soldierActions[soldierState];
+ action.reset().play();if(previous&&previous!==action)action.crossFadeFrom(previous,.2,false);
+ soldierState=state;
+}
+loadRealSoldier();
 let carryWood=0,carryMetal=0,coins=0;
 const sell=group(1.7,3.1);cube(sell,0,.09,0,2.4,.18,1.5,mat(0x353b3b));let sellRing=mesh(new T.TorusGeometry(1,.065,6,32),cyan,sell);sellRing.rotation.x=Math.PI/2;sellRing.position.y=.22;
 let trees=[],ores=[],turrets=[],houses=[],enemies=[],bullets=[],particles=[],pads=[],wood=0,metal=0,hp=100,baseHp=300,wave=1,clock=0,spawn=0,harvest=0,shot=0,houseTick=0,kills=0,dead=false,wall=null;
@@ -125,6 +162,7 @@ let vx=stick.x+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),vz=sti
 const miningTarget=[...trees,...ores].find(o=>o.hp>0&&dist({x:hero.position.x,z:hero.position.z},o)<1.8);
 if(miningTarget&&l<.18){const dx=miningTarget.x-hero.position.x,dz=miningTarget.z-hero.position.z;hero.rotation.y=Math.atan2(dx,dz);const swing=Math.sin(clock*19);rightArm.rotation.x=-1.2-swing*.8;leftArm.rotation.x=-.45+swing*.22;hero.rotation.z=Math.sin(clock*19)*.075;hero.position.y=Math.max(0,Math.sin(clock*19)*.035);rifle.visible=false;}else{hero.rotation.z=0;hero.position.y=0;rifle.visible=true;}
 let mining=!!miningTarget&&l<.18;
+if(soldierMixer){soldierMixer.update(dt);setSoldierAnimation(l>.1?'walk':mining?'run':'idle');}
 ll.rotation.x=l>.05?Math.sin(clock*12)*.55:0;rl.rotation.x=-ll.rotation.x;
 la.rotation.x=l>.05?-ll.rotation.x*.5:0;ra.rotation.x=mining?-1.2+Math.sin(clock*19)*.7:(l>.05?ll.rotation.x*.5:-.3);
 torso.rotation.z=mining?Math.sin(clock*19)*.08:0;
