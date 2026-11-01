@@ -4,6 +4,7 @@
 <div id="hud"><span id="hp">♥ 100 | База 300</span><span id="wood">Дерево 0</span><span id="metal">Металл 0</span><span id="wave">Волна 1</span></div>
 <div id="hint">Джойстик: движение · Ресурсы и строительство: автоматически</div><div id="joy"><div id="nub"></div></div><div id="toast"></div><div id="reset"><div><h1>База уничтожена</h1><button onclick="location.reload()">Начать заново</button></div></div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 (()=>{'use strict';
 const loading=document.getElementById('loading');
@@ -59,6 +60,24 @@ const chestCanvas=document.createElement('canvas');chestCanvas.width=256;chestCa
 const chestCtx=chestCanvas.getContext('2d');chestCtx.fillStyle='#f2f0dc';chestCtx.font='900 82px system-ui';chestCtx.textAlign='center';chestCtx.fillText('117',128,94);
 const chestTexture=new T.CanvasTexture(chestCanvas);const chestBadge=new T.Mesh(new T.PlaneGeometry(.48,.24),new T.MeshBasicMaterial({map:chestTexture,transparent:true,side:T.DoubleSide}));
 chestBadge.position.set(0,1.22,.35);hero.add(chestBadge);
+// Kenney Mini Arena Character Soldier (CC0). Loaded as an actual GLB mesh.
+let soldierVisual=null;
+if(T.GLTFLoader){
+ const glb=new T.GLTFLoader();
+ glb.load('https://cdn.jsdelivr.net/gh/shorepine/kenney@main/3d/mini-arena/character-soldier.glb',gltf=>{
+  const model=gltf.scene;
+  model.updateMatrixWorld(true);
+  const bounds=new T.Box3().setFromObject(model),size=new T.Vector3(),center=new T.Vector3();
+  bounds.getSize(size);bounds.getCenter(center);
+  const scale=2.35/Math.max(size.y,.01);
+  model.scale.setScalar(scale);
+  model.position.set(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
+  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  const old=hero.children.slice();old.forEach(o=>o.visible=false);
+  hero.add(model);soldierVisual=model;
+  toast('НОВЫЙ ПЕРСОНАЖ ЗАГРУЖЕН');
+ },undefined,err=>{console.warn('Soldier GLB unavailable, keeping procedural hero',err)});
+}
 let trees=[],ores=[],turrets=[],houses=[],enemies=[],bullets=[],particles=[],pads=[],wood=0,metal=0,hp=100,baseHp=300,wave=1,clock=0,spawn=0,harvest=0,shot=0,houseTick=0,kills=0,dead=false,wall=null;
 function tree(x,z){let g=group(x,z);cube(g,0,.65,0,.42,1.3,.42,woodMat);let a=mesh(new T.ConeGeometry(1.25,2.4,6),leaf,g);a.position.y=2.1;let b=mesh(new T.ConeGeometry(.95,1.8,6),leaf2,g);b.position.y=3.25;trees.push({x,z,g,hp:10})}
 function ore(x,z){let g=group(x,z);let a=mesh(new T.DodecahedronGeometry(.9,0),metalMat,g);a.position.y=.65;ball(g,.3,1.25,-.25,.35,cyan);ores.push({x,z,g,hp:8})}
@@ -83,6 +102,7 @@ function step(dt){if(dead)return;clock+=dt;wave=1+Math.floor(clock/30);if(clock>
 let vx=stick.x+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),vz=stick.y+(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0),l=Math.hypot(vx,vz);if(l>1){vx/=l;vz/=l}hero.position.x=Math.max(-26,Math.min(26,hero.position.x+vx*6.2*dt));hero.position.z=Math.max(-26,Math.min(26,hero.position.z+vz*6.2*dt));if(l>.05){hero.rotation.y=Math.atan2(vx,vz);legL.rotation.x=Math.sin(clock*13)*.52;legR.rotation.x=-legL.rotation.x;leftArm.rotation.x=-legL.rotation.x*.7;rightArm.rotation.x=-legR.rotation.x*.45}else{legL.rotation.x=legR.rotation.x=0;leftArm.rotation.x=rightArm.rotation.x=0}
 const miningTarget=[...trees,...ores].find(o=>o.hp>0&&dist({x:hero.position.x,z:hero.position.z},o)<1.8);
 if(miningTarget&&l<.18){const dx=miningTarget.x-hero.position.x,dz=miningTarget.z-hero.position.z;hero.rotation.y=Math.atan2(dx,dz);const swing=Math.sin(clock*19);rightArm.rotation.x=-1.2-swing*.8;leftArm.rotation.x=-.45+swing*.22;hero.rotation.z=Math.sin(clock*19)*.075;hero.position.y=Math.max(0,Math.sin(clock*19)*.035);rifle.visible=false;}else{hero.rotation.z=0;hero.position.y=0;rifle.visible=true;}
+if(soldierVisual){soldierVisual.rotation.z=miningTarget&&l<.18?Math.sin(clock*19)*.13:0;soldierVisual.rotation.x=miningTarget&&l<.18?Math.sin(clock*19)*.12:0;soldierVisual.position.y=(l>.05?Math.abs(Math.sin(clock*13))*.08:Math.sin(clock*2)*.025);}
 harvest-=dt;if(harvest<=0&&miningTarget){const r=miningTarget;r.hp--;let isTree=trees.includes(r);isTree?wood++:metal++;projectile({x:r.x,z:r.z},{x:hero.position.x,z:hero.position.z},isTree?'wood':'metal');if(r.hp===0)scene.remove(r.g);harvest=.32;hud()}
 for(const p of pads){if(p.built)continue;p.ring.rotation.z+=dt;p.platform.material.emissive=new T.Color(0x12695a);p.platform.material.emissiveIntensity=.35+.25*Math.sin(clock*5);if(!p.building&&dist({x:hero.position.x,z:hero.position.z},p)<1.5&&wood>=p.cw&&metal>=p.cm){wood-=p.cw;metal-=p.cm;p.building=true;p.progress=0;for(let i=0;i<p.cw+p.cm;i++){let type=i<p.cw?'wood':'metal';let from={x:hero.position.x,z:hero.position.z},to={x:p.x,z:p.z};setTimeout(()=>projectile(from,to,type),i*65)}toast('СТРОИТЕЛЬСТВО');hud()}if(p.building){p.progress+=dt/1.8;p.platform.scale.y=1+p.progress*7;if(p.progress>=1){p.built=true;p.building=false;scene.remove(p.g);if(p.type==='turret')turret(p.x,p.z);else if(p.type==='house')house(p.x,p.z);else fence();toast(p.type==='turret'?'ТУРЕЛЬ ГОТОВА':p.type==='house'?'ДОМ ГОТОВ':'ЗАБОР ГОТОВ')}}}
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.t+=dt;let k=Math.min(1,p.t/p.duration);p.g.position.x=p.from.x+(p.to.x-p.from.x)*k;p.g.position.z=p.from.z+(p.to.z-p.from.z)*k;p.g.position.y=Math.sin(k*Math.PI)*2;if(k>=1){scene.remove(p.g);particles.splice(i,1)}}
